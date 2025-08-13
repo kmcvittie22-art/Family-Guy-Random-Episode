@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Family Guy Random Episode Generator</title>
+  <style>
+    :root { --fg:#111; --muted:#666; --bg:#fafafa; --card:#fff; --border:#e5e5e5; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--fg); background:var(--bg); }
+    header { padding:24px; text-align:center; }
+    h1 { margin:0 0 6px; font-size:clamp(22px, 3vw, 28px); }
+    p.sub { margin:0; color:var(--muted); }
+    .wrap { max-width:900px; margin:0 auto; padding:16px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    button, .btn {
+      cursor:pointer; border:1px solid var(--border); background:#fff; padding:10px 14px; border-radius:12px;
+      font-weight:600; transition:transform .02s ease, box-shadow .15s ease;
+    }
+    button:hover { box-shadow:0 2px 10px rgba(0,0,0,.07); }
+    button:active { transform:translateY(1px); }
+    .result { font-size:18px; padding:14px; border-radius:12px; background:#f6f6f6; margin-top:12px; }
+    .meta { color:var(--muted); font-size:14px; margin-top:6px; }
+    .tools { margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; }
+    .search { flex:1; min-width:220px; padding:10px 12px; border:1px solid var(--border); border-radius:12px; }
+    .small { font-size:12px; color:var(--muted); }
+    .list { margin-top:12px; max-height:360px; overflow:auto; border-top:1px solid var(--border); }
+    .rowitem { padding:10px 6px; border-bottom:1px solid var(--border); display:flex; gap:10px; }
+    .rowitem .title { font-weight:600; }
+    .pill { background:#eef2ff; color:#3730a3; padding:2px 8px; border-radius:999px; font-size:12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Family Guy Random Episode Generator</h1>
+    <p class="sub">Click “Random Episode” or search. Works offline.</p>
+  </header>
+
+  <div class="wrap">
+    <div class="card">
+      <div class="row">
+        <button id="btn-random" disabled>🎲 Random Episode</button>
+        <button id="btn-copy" disabled>📋 Copy Result</button>
+      </div>
+
+      <div id="result" class="result">Loading episodes…</div>
+      <div class="meta" id="count">0 episodes loaded</div>
+
+      <div class="tools">
+        <input id="q" class="search" type="search" placeholder="Filter by title, season, main/side characters…" disabled />
+        <span class="small">Fields: Season, Episode, Title, Main Character, Side Character</span>
+      </div>
+
+      <div id="list" class="list"></div>
+    </div>
+  </div>
+
+  <script>
+    // === Raw data pasted exactly as provided (tab-separated) ===
+    const RAW = `Season	Episode	Title	Main Character	Side Character
+1	1	Death Has a Shadow	Peter	NA
+1	2	I Never Met the Dead Man	Peter	Stewie
+1	3	Chitty Chitty Death Bang	Peter	Meg
+1	4	Mind Over Murder	Peter	Stewie
+1	5	A Hero Sits Next Door	Peter	Joe
+1	6	The Son Also Draws	Chris	Lois
+1	7	Brain: Portrait of a Dog	Brain	Peter
+2	1	Peter, Peter Caviar Eater	Peter	Lois
+2	2	Holy Crap	Peter	Francis Griffin
+2	3	Da Boom	Peter	Family
+2	4	Brain in Love	Brain	Lois
+2	5	Love Thy Trophy	The Guys	Meg
+2	6	Death Is a Bitch	Peter	Death
+2	7	The King is Dead	Lois	Peter
+2	8	I Am Peter, Hear Me Roar	Peter	NA
+2	9	If I'm Dyin', I'm Lyin'	Peter	Chris
+2	10	Running Mates	Peter and Lois	Chris
+2	11	A Picture is Worth a 1,000 Bucks	Peter	Chris
+2	12	Fifteen Minutes of Shame	Meg	The Family
+2	13	Road to Rhode Island	Stewie and Brian	NA
+2	14	Let's Go to the Hop	Peter	Meg
+2	15	Dammit Janet!	Stewie  	Lois and Peter
+2	16	There's Something About Paulie	Peter	NA
+2	17	He's Too Sexy for His Fat	Peter	NA
+2	18	E. Peterbus Unum	Peter	NA
+2	19	The Story on Page One	Peter	Meg
+2	20	Wasted Talent	The Guys	Lois
+2	21	Fore Father	Peter and Chris	NA
+3	1	Thin White Line	Brain	NA
+3	2	Brain Does Hollywood	Brain	NA
+3	3	Mr. Griffin Goes to Washington	Peter	NA
+3	4	One if by Clam, Two if by Sea	Peter	NA
+3	5	And the Wiener is…	Peter	Meg
+3	6	Death Lives	Peter	NA
+3	7	Lethal Weapons	Lois	NA
+3	8	The Kiss Seen Around the World	Meg 	Stewie
+3	9	Mr. Saturday Knight	Peter	NA
+3	10	A Fish out of Water	Peter	Lois and Meg
+3	11	Emission Impossible	Stewie	NA
+3	12	To Love and Die in Dixie	Chris	The Family
+3	13	Screwed the Pooch	Brain	NA
+3	14	Peter Griffin: Husband, Father… Brother?	Peter	NA
+3	15	Ready, Willing, and Disabled	Joe and Peter	Stewie, Meg, and Brain
+3	16	A Very Special Family Guy Freakin' Christmas	The Family	Brain
+3	17	Brian Wallows and Peter's Swallows	Brian	Peter
+3	18	From Method to Madness	Stewie and Brian	Peter
+3	19	Stuck Together, Torn Apart	Peter and Lois	Brian and Stewie
+3	20	Road to Europe	Brian and Stewie	Peter and Lois
+3	21	Family Guy Viewer Mail No. 1	The Family	NA
+3	22	When You Wish Upon A Weinstein	Peter	Chris
+4	1	North by North Quahog	Peter and Lois	NA
+4	2	Fast Times at Buddy Cianci, Jr. High	Chris, Lois, and Stewie	Brian  
+4	3	Blind Ambition	Peter	NA
+4	4	Don't Make Me Over	Meg and the Family	The Guys
+4	5	The Celveland-Loretta Quagmire	Cleveland	NA
+4	6	Petarded	Peter	NA
+4	7	Brian the Bachelor	Brian   	Chris
+4	8	8 Simple Rules for Buying My Teenage Daughter	Meg	Stewie
+4	9	Breaking Out is Hard to Do	Lois	The Family
+4	10	Model Misbehavior	Lois	Stewie and Brian
+4	11	Peter's Got Woods	Peter	NA
+4	12	The Perfect Castaway	The Guys	NA
+4	13	Jungle Love	Chris and Peter	NA
+4	14	PTV	Peter and Brian	NA
+4	15	Brian Goes Back to College	Brian and Stewie	The Guys
+4	16	The Courtship of Stewie's Father	Stewie and Peter	Chris
+4	17	The Fat Guy Strangler	Peter and Lois	NA
+4	18	The Father, the Son, and the Holy Fonz	Peter	NA
+4	19	Brian Sings and Swings	Brian	Meg
+4	20	Patriot Games	Peter	Stewie
+4	21	I Take Thee Quagmire	Quagmire	Stewie
+4	22	Sibling Rivalry	Peter and Lois	Stewie
+4	23	Deep Throats	Meg	Peter and Lois
+4	24	Peterotica	Peter and Carter	NA
+4	25	You May Now Kiss the…Uh…Guy Who Recieves	Brian	Lois and Chris
+4	26	Petergeist	Peter	NA
+4	27	Untitled Griffin Family History	The Family	NA
+4	28	Stewie B. Goode	Stewie	NA
+4	29	Bango Was His Name Oh	Stewie	Peter and Lois
+4	30	Stu & Stewie's Excellent Adventure	Stewie	NA
+5	1	Stewie Loves Lois	Stewie	Peter
+5	2	Mother Tucker	Peter	Brian and Stewie
+5	3	Hell Comes to Quahog	Peter	Stewie and Brian
+5	4	Saving Private Brian	Brian and Stewie	Chris
+5	5	Whistle While Your Wife Works	Peter and Lois	Stewie anf Brian
+5	6	Prick Up Your Ears	Lois	Meg  and Stewie
+5	7	Chick Cancer	Stewie	Peter
+5	8	Barely Legal	Brian and Meg	The Guys
+5	9	Road to Rupert	Brian and Stewie	Meg and Peter
+5	10	Peter's Two Dads	Peter and Brian	Stewie
+5	11	The Tan Aquatic with Steve Zissou	Peter	Stewie and Brian
+5	12	Airport 07	Quagmire	NA
+5	13	Bill and Peter's Bogus Journey	Peter	Lois, Brian, and Stewie
+5	14	No Meals on Wheels	The Family	NA
+5	15	Boys Do Cry	The Family	NA
+5	16	No Chris Left Behind	Chris	NA
+5	17	It Takes a Village Idiot and I Married One	Lois	Peter
+5	18	Meet the Quagmires	Peter	NA
+6	1	Blue Harvest	Star Wars	NA
+6	2	Movin' Out (Brian's Song)	Brian and Stewie	Meg and Chris
+6	3	Believe It or Not, Joe's Walking on Air	Joe  	NA
+6	4	Stewie Kills Lois	Stewie and Lois	NA
+6	5	Lois Kills Stewie	Stewie and Lois	NA
+6	6	Padre De Familia	Peter	NA
+6	7	Peter's Daughter	Meg	NA
+6	8	McStroke	Peter	NA
+6	9	Back to the Woods	Peter and James Woods	NA
+6	10	Play it Again, Brian	Peter and Brian	NA
+6	11	The Former Life of Brian	Brian	NA
+6	12	Long John Peter	Peter	Chris 
+7	1	Love, Blactually	Brian 	NA
+7	2	I Dream of Jesus	Peter	NA
+7	3	Road to Germany	Stewie and Brian + Mort	NA
+7	4	Baby Not On Board	The Family	NA
+7	5	The Man with Two Brians	Brian	NA
+7	6	Tales of a Third Grade Nothing	Peter	Brian and Stewie
+7	7	Ocean's Three and a Half	Stewie	Joe
+7	8	Family Gay	Peter	NA
+7	9	The Juice is Loose	Peter	NA
+7	10	FOX-y Lady	Lois	NA
+7	11	Not All Dogs Go To Heaven	Stewie	Meg and Brian
+7	12	420	Brian	NA
+7	13	Stew--Roids	Stewie	Chris
+7	14	We Love You, Conrad	Brian	NA
+7	15	Three Kings	Steven King Films	NA
+7	16	Peter's Progress	Peter	NA
+8	1	Road to the Multiverse	Stewie and Brian	NA
+8	2	Family Goy	Peter	NA
+8	3	Spies Reminiscent of Us	Brian and Stewie	NA
+8	4	Brian's Got a Brand New Bag	Brian	Peter
+8	5	Hannah Banana	Chris	Stewie
+8	6	Quagmire's Baby	Quagmire	Stewie and Brian
+8	7	Jerome Is the New Black	The Guys and Jerome	Brian
+8	8	Dog Gone	Peter and Lois	Brian
+8	9	Business Guy	Peter and Carter	NA
+8	10	Big Man on Hippocampus	Lois and Quagmire	Peter
+8	11	Dial Meg for Murder	Meg	NA
+8	12	Extra Large Medium	Lois and Peter	Chris
+8	13	Go, Stewie, Go!	Stewie	Meg / Peter and Lois
+8	14	Peter-assment	Peter and Angela	NA
+8	15	Brian Griffin's House of Payne	Brian	NA
+8	16	April in Quahog	Peter and the family	
+8	17	Brian & Stewie	Brian and Stewie	NO!!!!
+8	18	Quagmire's Dad	Quagmire	NA
+8	19	The Splendid Source	The Guys	NA
+8	20	Something, Something, Something, Dark Side	Star Wars	NA
+8	21	Partial Terms of Enderament*	Lois and the family	NA
+9	1	And Then There Were Fewer	Quahog	NA
+9	2	Excellence in Broadcasting	Brian	NA
+9	3	Welcome Back, Carter	Peter and Cater	NA
+9	4	Halloween on Spooner Street	Peter and Joe	Brian and Stewie / Meg
+9	5	Baby, You Knock Me Out	Lois	NA
+9	6	Brian Writes a Bestseller	Brian and Stewie	NA
+9	7	Road to the North Pole	Stewie and Brian	NA
+9	8	New Kidney in Town	Peter	Chris and Meg
+9	9	And I'm Joyce Kinney	Lois	NA
+9	10	Friends of Peter G	Peter and Brian	NA
+9	11	German Guy	Chris	NA
+9	12	The Hand That Rocks the Wheelchair	Meg	Stewie
+9	13	Trading Places	Family minus Stewie and Brian	NA
+9	14	Tiegs for Two	Brian and Quagmire	Peter
+9	15	Brothers & Sisters	Mayor West, Lois, Carol, and Peter	Stewie and Chris
+9	16	The Big Bang Theory	Stewie and Brian	NA
+9	17	Foreign Affairs	Lois and Bonnie	NA
+9	18	It's A Trap	Star Wars	NA
+10	1	Lottery Fever	The family	NA
+10	2	Seahorse Seashell Party	The family	Stewie and Brian
+10	3	Screams of Silence: The Story of Brenda Q.	Quagmire	NA
+10	4	Back to the Pilot	Brian and Stewie	NA
+10	5	Thanksgiving	Kevin and Joe	Quahog
+10	6	Amish Guy	Meg	The family
+10	7	Cool Hand Peter	The Guys	NA
+10	8	Grumpy Old Man	Carter and the family	NA
+10	9	Quagmire and Meg	Quagmire and Meg	NA
+10	10	The Blind Side	Brian	Peter
+10	11	Livin on a Prayer	Lois	NA
+10	12	Tom Tucker: The Man and His Dream	Tom Tucker and Peter	Chris
+10	13	Be Careful What You Fish For	The Guys and the family	NA
+10	14	Burning Down the Bayit	Mort, Peter, Quagmire	NA
+10	15	Killer Queen	Peter and Chris	Stewie
+10	16	Forget-Me-Not	Peter, Joe, Brian, Quagmire	NA
+10	17	You Cant Do That On Televison, Peter	Peter	Meg
+10	18	Mr. and Mrs. Stewie	Stewie	Lois and Peter
+10	19	Leggo My Meg-O	Meg, Brian and Stewie	NA
+10	20	Tea Peter	Peter	Carter
+10	21	Family Guy Viewer Mail No. 2	The Family	NA
+10	22	Internal Affairs	Joe  	Peter
+11	1	Into Fat Air	The Family	NA
+11	2	Ratings Guy	The Family	NA
+11	3	The Old Man and the Big C	Brian and Stewie	Quagmire
+11	4	Yug Yimaf	Brian and Stewie	NA
+11	5	Joe's Revenge	Joe	NA
+11	6	Lois Comes Out of Her Shell	Lois	Stewie
+11	7	Friends Without Benefits	Meg	NA
+11	8	Jesus, Mary & Joesph	The Family	NA
+11	9	Space Cadet	Chris	NA
+11	10	Brian's Play	Brian	NA
+11	11	The Giggity Wife	Quagmire and the Guys	NA
+11	12	Valentine's Day in Quahog	Quahog	NA
+11	13	Chris Cross	Chris and Herbet	Brian and Stewie
+11	14	Call Girl	Lois	NA
+11	15	Turban Cowboy	Peter	NA
+11	16	12 and a Half Angry Men	Quahog	NA
+11	17	Bigfat	Peter	NA
+11	18	Total Recall	Stewie	Peter and Lois
+11	19	Save the Clam	The Guys	Meg
+11	20	Farmer Guy	The Family	NA
+11	21	Roads to Vegas	Brian and Stewie	NA
+11	22	No Country Club for Old Men	The family	NA
+12	1	Finders Keepers	Peter	Quahog
+12	2	Vestigial Peter	Peter	NA
+12	3	Quagmire's Quagmire	Quagmire	Stewie and Brian
+12	4	A Fistful of Meg	Meg	Peter and Brian
+12	5	Boopa-Dee Bappa-Dee	The family	NA
+12	6	Life of Brian	Stewie and Brian	HOORAY!
+12	7	In Harmony's Way	Peter and Quagmire	NA
+12	8	Christmas Guy	Peter	Stewie
+12	9	Peter Problems	Peter 	NA
+12	10	Grimm Job	Trilogy	NA
+12	11	Brian's a Bad Father	Brian	Peter and Quagmire
+12	12	Mom's the Word	Peter	Stewie
+12	13	3 Acts of God	The Guys	NA
+12	14	Fresh Hair	Carter and Chris	
+12	15	Secondhand Spoke	Peter	Stewie and Chris
+12	16	Herpe, the Love Sore	Brian and Stewie	The Guys
+12	17	The Most Interesting Man in the World	Peter	NA
+12	18	Baby Got Black	Jerome and Peter	NA
+12	19	Meg Stinks	Meg and Peter	Brian
+12	20	He's Bla-ack!	Cleveland and Peter	NA
+12	21	Chap Stewie	Stewie	NA
+13	1	The Simpsons Guy	The family	NA
+13	2	The Book of Joe	Joe	Brian
+13	3	Baking Bad	Lois and Peter	NA
+13	4	Brian the Closer	Brian	NA
+13	5	Turkey Guys	Peter and Brian	Chris
+13	6	The 2000-Year Old Virgin	The Guys and Jesus	NA
+13	7	Stewie, Chris, & Brian's Excellend Adventure	Chris, Brian and Stewie	NA
+13	8	Our Idiot Brian	Brian 	NA
+13	9	This Little Piggy	Meg	Brian and Stewie
+13	10	Quagmire's Mom	Peter	Quagmire
+13	11	Encyclopedia Griffin	Chris	Lois
+13	12	Stewie Is Enceinte	Stewie and Brian	NOOOOO!!!!!
+13	13	Dr. C & The Women	Meg	Cleveland / Peter and Lois
+13	14	#JOLO	The Guys	NA
+13	15	Once Bitten	Brian and Peter	Chris
+13	16	Roasted Guy	Peter	NA
+13	17	Fighting Irish	Peter	Stewie
+13	18	Take My Wfie	The Guys + Wifes	Carter and the family
+14	1	Pilling Them Softly	Stewie and Brian	Quagmire and Peter
+14	2	Papa Has A Rollin Son	Joe and Peter	Stewie
+14	3	Guy, Robot	Brian and Stewie	Lois and Peter
+14	4	Peternormal Activity	The Guys	Stewie and Brian
+14	5	Peter, Chris, & Brian	Peter, Chris, and Brian	NA
+14	6	Peter's Sister	Peter and Sister	NA
+14	7	Hot Pocket-Dial	Lois	NA
+14	8	Brokeback Swanson	Joe	Brian
+14	9	A Shot in the Dark	Peter and Cleveland	NA
+14	10	Candy Quahog Marshmellow	The Guys	NA
+14	11	The Peanut Butter Kid	Stewie	Peter and Lois
+14	12	Scammed Yankees	Carter and Peter	Stewie and Brian
+14	13	An App a Day	Peter and Chris	Stewie and Brian
+14	14	Underage Peter	Peter and Brian	NA
+14	15	A Lot Going On Upstairs	The Guys	Brian and Stewie
+14	16	The Heartbreak Dog	Brian	Meg and Chris
+14	17	Take a Letter	Lois	NA
+14	18	The New Adventures of Old Tom	Peter	Brian
+14	19	Run, Chris, Run	The Kids and Brian	The Guys
+14	20	Road to India	Brian and Stewie	Joe and Lois
+15	1	The Boys in the Band	Stewie and Brian	Chris
+15	2	Bookie of the Year	Chris	Stewie and Brian
+15	3	American Gigg-olo	Quagmire	Brian and Stewie
+15	4	Inside Family Guy	The family	NA
+15	5	Chris Has Got a Date, Date, Date, Date, Date	Chris	Peter
+15	6	Hot Shots	Peter and Lois	Stewie
+15	7	High School English	Trilogy	NA
+15	8	Carter and Trcia	Carter	Brian and Stewie
+15	9	How the Griffin Stole Christmas	Peter	Stewie and Brian
+15	10	Passenger Fatt-Seven	The Guys	NA
+15	11	Gronkowsbees	Peter	Stewie
+15	12	Peter's Def Jam	The Guys	Brian and Stewie
+15	13	The Finer Strings	The Guys	Brian
+15	14	The Dating Game	Quagmire	Stewie
+15	15	Cop and a Half-Wit	Peter and Joe	Stewie and Brian
+15	16	Saturated Fat Guy	Peter	Meg
+15	17	Peter's Lost Youth	Peter	Meg
+15	18	The Peter Principal	Peter	Brian and Stewie
+15	19	Dearly Deported	The family	NA
+15	20	A House Full of Peters	Peter	NA
+16	1	Emmy-Winning Episode	Trilogy	NA
+16	2	Foxx in the Men House	Peter	NA
+16	3	Nanny Goats	The Kids and Brian	Lois and Peter
+16	4	Follow the Money	Quahog	NA
+16	5	Three Directors	Trilogy	NA
+16	6	The D in Apartment 23	Brian	NA
+16	7	Petey IV	Peter	Brian
+16	8	Crimes and Meg's Demeanor	Peter	Brian
+16	9	Don't Be a Dickens At Christmas	Peter	NA
+16	10	Boy(Dog) Meets Girl(Dog)	Brian	Peter and Lois
+16	11	Dog Bites Bear	Stewie and Brian	Peter
+16	12	Send in Stewie, Please	Stewie	NO!!!!
+16	13	V is for Mystery	Stewie and Brian	NA
+16	14	Veteran Guy	The Guys	NA
+16	15	The Woof of Wall Street	Brian and Stewie	The Guys
+16	16	"Family Guy" Through the Years	Trilogy	NA
+16	17	Switch the Flip	Brian and Stewie	Quahog
+16	18	HTTPete	Peter	NA
+16	19	The Unkindest Cut	Quagmire	Stewie and Brian
+16	20	Are You There God? It's Me, Peter	Peter	NA
+17	1	Married… With Cancer	Brian	NA
+17	2	Dead Dog Walking	Brian	NA
+17	3	Pal Stewie	Stewie	Peter
+17	4	Big Trouble in Little Quahog	Brian and Stewie	NA
+17	5	Regarding Carter	Carter and the family	NA
+17	6	Stand By Meg	Stewie and Meg	Chris
+17	7	Griffin Winter Games	Meg	NA
+17	8	Con Heiress	Stewie and Brian	Peter and Chris
+17	9	Pawtucket Pete	Peter and Brian	NA
+17	10	Hefty Shades of Gray	Peter	Brian and Stewie
+17	11	Trump Guy	The family	NA
+17	12	Bri, Robot	Brian and Stewie	NA
+17	13	Trans-Fat	Peter	NA
+17	14	Family Guy Lite	The Guys	Brian and Stewie
+17	15	No Giggity, No Doubt	Quagmire	NA
+17	16	You Cant Handle the Booth	The family	NA
+17	17	Island Adventure	Stewie and Brian	Lois and Quagmire
+17	18	Throw It Away	Lois	NA
+17	19	Girl, Internetted	Meg	Brian and Stewie
+17	20	Adam West High	Brian	NA
+18	1	Yacht Rocky	The family and friends	NA
+18	2	Bri-Da	The Guys	Quagmire and Brian
+18	3	Adsolutely Babulous	Stewie	Babs
+18	4	Disney's The Reboot	Trilogy	NA
+18	5	Cat Fight	Quagmire and Brian	Meg and Chris
+18	6	Peter & Lois' Wedding	Peter and Lois	NA
+18	7	Heart Burn	Trilogy	NA
+18	8	Shanksgiving	The Guys	Stewie
+18	9	Christmas is Coming	Stewie	NA
+18	10	Connie's Celica	Lois	NA
+18	11	Short Cuts	Brian	Lois and Peter
+18	12	Undergrounded	Peter	NA
+18	13	Rich Old Stewie	Stewie	The family
+18	14	The Movement	Peter	NA
+18	15	Baby Stewie	Stewie 	NA
+18	16	Start Me Up	Peter	Stewie and Chris
+18	17	Coma Guy	Peter	NA
+18	18	Better Off Meg	Meg	The family
+18	19	Holly Bibble	Trilogy	NA
+18	20	Movin' In (Principal Shepherd's Song)	Principal Shepherd	Brian and Stewie
+19	1	Stewie's First Word	Stewie and Lois	NA
+19	2	The Talented Mr. Stewie	Stewie	NA
+19	3	Boys & Squirrels	Chris and Stewie	Peter
+19	4	Cutawayland	Peter and Lois	The kids
+19	5	La Famiglia Guy	Peter	NA
+19	6	Meg's Wedding	Meg	Peter
+19	7	Wild Wild West	Lois and Peter	NA
+19	8	Pawtucket Pat	Brian	Quahog
+19	9	The First No L	Lois	The family
+19	10	Fecal Matters	Peter	Brian
+19	11	Boy's Best Friend	Brian	The Guys
+19	12	And Then There's Fraud	Peter and Chris	Stewie
+19	13	PeTerminator	Stewie and Brian	NA
+19	14	The Marrying King	Stewie	Peter and Chris
+19	15	Customer of the Week	Lois	NA
+19	16	Who's Brian Now	Brian	NA
+19	17	Young Parent Trap	Lois and Peter	NA
+19	18	Meg Goes to College	Meg	Brian
+19	19	Family Cat	Brian	NA
+19	20	Tales of Former Sports Glory	Trilogy	NA
+20	1	LASIK Instinct	Lois	Peter, Chris, and Stewie
+20	2	Rock Hard	Trilogy	NA
+20	3	Must Love Dogs	Quagmire and Brian	Stewie and Chris
+20	4	80's Guy	Peter 	Stewie and Doug
+20	5	Brief Encounter	Peter and Quagmire	Stewie and Doug
+20	6	Cootie & the Blowhard	Stewie	Peter
+20	7	Peterschmidt Manor	The Family minus Lois	Lois
+20	8	The Birthday Bootlegger	Peter	Stewie
+20	9	The Fatman Always Rings Twice	Peter	NA
+20	10	Christmas Crime	Brian	NA
+20	11	Mister Act	Peter	Stewie
+20	12	The Lois Quagmire	Lois	The Family minus Lois
+20	13	Lawyer Guy	Peter	Brian and Stewie
+20	14	HBO-No	Trilogy	NA
+20	15	Hard Boiled Meg	Meg	Quagmire
+20	16	Prescription Heroine	Lois	Cleveland and Peter
+20	17	All About Alana	Lois	NA
+20	18	Girlfriend, Eh?	Peter and Chris	Lois and Meg
+20	19	First Blood	The Guys	Stewie
+20	20	The Jersey Bore	The Guys and Preston	Stewie and Chris
+21	1	Oscars Guy	Trilogy	NA
+21	2	Bend or Blockbuster	The family	NA
+21	3	A Wife-Changing Experience	Joe	Stewie
+21	4	The Munchurian Candidate	Lois	Stewie
+21	5	Unzipped Code	Cleveland	NA
+21	6	Happy Holo-ween	Peter	NA
+21	7	The Stewaway	Stewie and Quagmire	Peter and Lois
+21	8	Get Stewie	Stewie	Peter
+21	9	Carny Knowledge	Peter and Chris	Brian
+21	10	The Candidate	Stewie and Doug	NA
+21	11	Love Story Guy	Trilogy	NA
+21	12	Old West	Wild West	NA
+21	13	Single White Dad	Peter	NA
+21	14	White Meg Can't Jump	Meg	Stewie
+21	15	Adoptation	Carter and Lois	NA
+21	16	The Bird Reich	Peter	Stewie and Brian
+21	17	A Bottle Episode	Lois	Stewie and Brian
+21	18	Vat Man and Rob 'Em	The Guys	Stewie and Brian
+21	19	From Russia With Love	Meg	Lois
+21	20	Adult Education	Meg	Chris and Principal Shepherd
+22	1	Fertilized Meg	Meg	NA
+22	2	Supermarket Pete	Peter and Lois	Joe and Brian
+22	3	A 'Stache from th Past	Peter and Wild West	Stewie and Brian
+22	4	Old World Harm	Peter and Lois	Brian and Stewie
+22	5	Baby, It's Cold Inside	Peter	Stewie
+22	6	Boston Stewie	Stewie	Meg and Chris
+22	7	Snap(ple) Decision	Lois and Meg	Brian and Stewie
+22	8	Baking Sad	Meg	The Guys
+22	9	The Return of the King (of Queens)	Lois	NA
+22	10	Cabin Pressure	The Family and friends	NA
+22	11	Teacher's Heavy Pet	Chris 	NA
+22	12	Take This Job and Love it	Trilogy	NA
+22	13	Lifeguard Meg	Stewie and Brian	Meg
+22	14	Fat Actor	Peter	NA
+22	15	Faith No More	Brian and Stewie	NA
+23	1	Peter, Peter, Pumpkin Cheater	Peter	NA
+23	2	Gift of the White Guy	Peter	Stewie
+23	3	Fat Gun	Quahog	NA
+23	4	Live,Laugh,Love	Peter	Lois
+23	5	Drunk with Power	Peter	The Guys
+23	6	Lois C.K.	Lois	NA
+23	7	The Chicken or the Meg	Meg	NA
+23	8	Dog is My Co-Pilot	Quagmire and Brian	Stewie and Chris
+23	9	Pitch Imperfect	Peter	Brian and Stewie
+23	10	Hard Times at Adam West High	Chris	Peter
+23	11	The Elle Word	Quagmire	NA
+23	12	A Real Who's Hulu	Trilogy	NA
+23	13	China Doll	Stewie and Brian	NA
+23	14	One Foot in Front of the Mother	Chris	Brian
+23	15	The Fat Lotus	Quahog	NA
+23	16	Cool Hand Lois	Lois	Peter and Joe
+23	17	Martian Meg	Meg	NA
+23	18	Row v. Wade	Brian and Stewie	NA
+23	19	Karenheit 451	Lois	NA
+23	20	Twain's World	Brian and Stewie	NA`;
+
+    // === Helpers to normalize capitalization (light touch) ===
+    const SMALL_WORDS = new Set(['a','an','and','as','at','but','by','for','in','nor','of','on','or','per','the','to','vs','via']);
+    function titleCase(str) {
+      if (!str) return str;
+      return str.split(/(\s+|-|\/|,)/).map((token, i) => {
+        if (/^\s+$|^[-\/,]$/.test(token)) return token; // keep separators
+        // keep all-caps tokens (e.g., NA, NO!!!!, HBO-No piecewise)
+        if (/[A-Z].*[A-Z]/.test(token) || /^[A-Z0-9\W]+$/.test(token)) return token;
+        const lower = token.toLowerCase();
+        if (i !== 0 && SMALL_WORDS.has(lower)) return lower;
+        return lower.charAt(0).toUpperCase() + lower.slice(1);
+      }).join('');
+    }
+
+    function nameCase(str) {
+      if (!str) return '';
+      if (str.trim() === 'NA') return 'NA';
+      // Capitalize word by word, keep all-caps tokens
+      return str.split(/(\s+|,|\/|&|\+|and)/).map(tok => {
+        if (/^\s+$|^,|^\/|^&|\+$|^and$/.test(tok)) return tok; // separators
+        if (/^[A-Z0-9\W]+$/.test(tok)) return tok; // all caps / symbols
+        const lower = tok.toLowerCase();
+        return lower.charAt(0).toUpperCase() + lower.slice(1);
+      }).join('');
+    }
+
+    function parseTSV(tsv) {
+      const lines = tsv.trim().split(/\r?\n/);
+      const header = lines.shift().split('\t').map(h => h.trim().toLowerCase());
+      const idx = name => header.indexOf(name.toLowerCase());
+      const iS = idx('season'), iE = idx('episode'), iT = idx('title'), iM = idx('main character'), iC = idx('side character');
+      const out = [];
+      for (const line of lines) {
+        const cols = line.split('\t');
+        if (cols.length < 3) continue;
+        const season = Number(cols[iS]);
+        const episode = Number(cols[iE]);
+        const rawTitle = (cols[iT] || '').trim();
+        const rawMain = (cols[iM] || '').trim();
+        const rawSide = (cols[iC] || '').trim();
+        out.push({
+          season,
+          episode,
+          title: titleCase(rawTitle),
+          main: nameCase(rawMain),
+          side: nameCase(rawSide)
+        });
+      }
+      return out;
+    }
+
+    // === Build data ===
+    const episodes = parseTSV(RAW);
+    const $ = id => document.getElementById(id);
+    const btnRandom = $('btn-random'), btnCopy = $('btn-copy');
+    const result = $('result'), count = $('count'), q = $('q'), list = $('list');
+
+    function renderList(arr) {
+      list.innerHTML = arr.map(ep => {
+        return `<div class="rowitem">
+          <div class="title">${ep.title}</div>
+          <div class="pill">S${ep.season}·E${ep.episode}</div>
+          <div class="small">Main: ${ep.main || '—'} | Side: ${ep.side || '—'}</div>
+        </div>`;
+      }).join('');
+    }
+
+    function show(ep) {
+      result.innerHTML = `<strong>${ep.title}</strong><br>
+        Season ${ep.season}, Episode ${ep.episode}<br>
+        <span class="small">Main: ${ep.main || '—'} | Side: ${ep.side || '—'}</span>`;
+    }
+
+    function randomEpisode(arr) {
+      const i = Math.floor(Math.random() * arr.length);
+      return arr[i];
+    }
+
+    // Initialize UI
+    (function init() {
+      const n = episodes.length;
+      count.textContent = `${n} episode${n===1?'':'s'} loaded`;
+      if (n) {
+        btnRandom.disabled = false;
+        btnCopy.disabled = false;
+        q.disabled = false;
+        result.textContent = 'Ready. Click 🎲 Random Episode.';
+        renderList(episodes);
+      } else {
+        result.textContent = 'No episodes found.';
+      }
+    })();
+
+    btnRandom.addEventListener('click', () => {
+      const ep = randomEpisode(episodes);
+      if (ep) show(ep);
+    });
+
+    btnCopy.addEventListener('click', async () => {
+      const text = result.innerText.trim();
+      if (!text) return;
+      try { await navigator.clipboard.writeText(text); btnCopy.textContent = '✅ Copied'; setTimeout(()=>btnCopy.textContent='📋 Copy Result', 900); } catch {}
+    });
+
+    q.addEventListener('input', () => {
+      const term = q.value.trim().toLowerCase();
+      const filtered = !term ? episodes : episodes.filter(ep =>
+        (ep.title||'').toLowerCase().includes(term) ||
+        String(ep.season).includes(term) ||
+        String(ep.episode).includes(term) ||
+        (ep.main||'').toLowerCase().includes(term) ||
+        (ep.side||'').toLowerCase().includes(term)
+      );
+      renderList(filtered);
+    });
+  </script>
+</body>
+</html>
